@@ -74,6 +74,7 @@ let waveEnemiesRemaining = 0;
 let shield = 0;
 let powerLevel = 1;
 let rapidUntil = 0;
+let stageTransitionPending = false;
 
 let scoreText;
 let livesText;
@@ -265,9 +266,10 @@ function handlePlayerFiring(time) {
 }
 
 function runFormationPhase(time) {
-  if (time >= nextFormationAt && waveEnemiesRemaining === 0 && countLivingEnemies() === 0) {
+  if (stageTransitionPending && time >= nextFormationAt && countLivingEnemies() === 0) {
+    stageTransitionPending = false;
     spawnFormation.call(this);
-    nextFormationAt = time + 1000000;
+    return;
   }
 
   updateFormationMovement(time);
@@ -277,7 +279,7 @@ function runFormationPhase(time) {
     fireFromFormation.call(this);
   }
 
-  if (waveEnemiesRemaining === 0 && countLivingEnemies() === 0 && time < nextFormationAt) {
+  if (!stageTransitionPending && waveEnemiesRemaining === 0 && countLivingEnemies() === 0) {
     enemyFormation.removeAll();
     if (level === BOSS_STAGE - 1) {
       level = BOSS_STAGE;
@@ -288,6 +290,7 @@ function runFormationPhase(time) {
       updateHud();
       announce.call(this, `STAGE ${level}`);
       nextFormationAt = time + 1200;
+      stageTransitionPending = true;
     }
   }
 }
@@ -320,6 +323,7 @@ function startNewGame() {
   helperText.setVisible(false);
   announce.call(this, 'STAGE 1');
   nextFormationAt = 300;
+  stageTransitionPending = true;
 }
 
 function resetRun(showReady) {
@@ -330,6 +334,7 @@ function resetRun(showReady) {
   shield = 0;
   powerLevel = 1;
   rapidUntil = 0;
+  stageTransitionPending = false;
   lastFired = 0;
   nextFormationAt = 0;
   formationFireAt = 0;
@@ -371,6 +376,7 @@ function resetRun(showReady) {
 
 function spawnFormation() {
   enemyFormation.removeAll();
+  stageTransitionPending = false;
 
   const rows = STAGE_ROWS[level - 1];
   if (!rows) return;
