@@ -1,6 +1,6 @@
 const GAME_WIDTH = 900;
 const GAME_HEIGHT = 700;
-const GAME_VERSION = 'v0.2.4';
+const GAME_VERSION = 'v0.2.6';
 const STAGE_ROWS = [
   [1, 1, 1, 1],
   [2, 1, 1, 1],
@@ -291,6 +291,11 @@ function handlePlayerFiring(time) {
 }
 
 function runFormationPhase(time) {
+  if (level >= BOSS_STAGE) {
+    startBossBattle.call(this);
+    return;
+  }
+
   if (stageTransitionPending && time >= nextFormationAt && countLivingEnemies() === 0) {
     stageTransitionPending = false;
     spawnFormation.call(this);
@@ -300,7 +305,7 @@ function runFormationPhase(time) {
   updateFormationMovement(time);
 
   if (time > formationFireAt && countLivingEnemies() > 0) {
-    formationFireAt = time + Math.max(520, 1200 - level * 45);
+    formationFireAt = time + Math.max(320, 900 - level * 35);
     fireFromFormation.call(this);
   }
 
@@ -321,20 +326,25 @@ function runFormationPhase(time) {
 }
 
 function runBossPhase(time) {
-  if (!boss || !boss.active) return;
+  if (!boss || !boss.active) {
+    startBossBattle.call(this);
+    return;
+  }
 
-  boss.x += bossDirection * 2.8;
+  this.physics.overlap(playerBullets, boss, onBulletHitEnemy, null, this);
+
+  boss.x += bossDirection * 3.6;
   if (boss.x < 100 || boss.x > GAME_WIDTH - 100) {
     bossDirection *= -1;
   }
 
   if (time > bossPatternAt) {
-    bossPatternAt = time + 1800;
-    boss.y = Phaser.Math.Clamp(boss.y + Phaser.Math.Between(-14, 18), 90, 180);
+    bossPatternAt = time + 1400;
+    boss.y = Phaser.Math.Clamp(boss.y + Phaser.Math.Between(-18, 22), 110, 220);
   }
 
   if (time > bossFireAt) {
-    bossFireAt = time + 520;
+    bossFireAt = time + 360;
     bossFire.call(this);
   }
 
@@ -466,13 +476,13 @@ function updateFormationMovement(time) {
 function fireFromFormation() {
   const shooters = [];
   enemies.children.iterate((enemy) => {
-    if (enemy && enemy.active) shooters.push(enemy);
+    if (enemy && enemy.active && enemy.inFormation && !enemy.diving) shooters.push(enemy);
   });
   if (shooters.length === 0) return;
 
   const shooter = Phaser.Utils.Array.GetRandom(shooters);
 
-  if (Math.random() < 0.2) {
+  if (Math.random() < 0.16) {
     startDive(shooter);
   } else {
     const bullet = enemyBullets.get(shooter.x, shooter.y + 12, 'enemyBullet');
@@ -480,7 +490,7 @@ function fireFromFormation() {
     bullet.setActive(true).setVisible(true);
     bullet.body.enable = true;
     bullet.setDepth(2);
-    this.physics.moveTo(bullet, player.x, player.y, 220 + Math.min(level, 9) * 10);
+    this.physics.moveTo(bullet, player.x, player.y, 260 + Math.min(level, 9) * 14);
   }
 }
 
@@ -508,17 +518,34 @@ function resetDivingEnemy(enemy) {
 }
 
 function startBossBattle() {
+  if (sceneState === State.BOSS && boss && boss.active) return;
+
   sceneState = State.BOSS;
   waveEnemiesRemaining = 0;
+  stageTransitionPending = false;
   enemyFormation.removeAll();
   clearGroup(enemies);
+  clearGroup(enemyBullets);
   announce.call(this, 'STAGE 10 BOSS');
 
-  boss = this.physics.add.image(GAME_WIDTH / 2, 120, 'boss');
+  if (boss) {
+    boss.destroy();
+    boss = null;
+  }
+  if (bossHitOverlap) {
+    bossHitOverlap.destroy();
+    bossHitOverlap = null;
+  }
+
+  boss = this.physics.add.image(GAME_WIDTH / 2, 84, 'boss');
   boss.setDepth(4);
+  boss.setScale(1.35);
+  boss.setAlpha(1);
+  boss.setActive(true).setVisible(true);
+  boss.body.enable = true;
   boss.hp = 120;
   bossMaxHp = boss.hp;
-  boss.body.setSize(120, 72);
+  boss.body.setSize(128, 72);
   bossHitOverlap = this.physics.add.overlap(playerBullets, boss, onBulletHitEnemy, null, this);
   setBossBarVisible(true);
   updateBossBar();
@@ -527,8 +554,8 @@ function startBossBattle() {
 function bossFire() {
   if (!boss || !boss.active) return;
 
-  const spread = [-0.14, 0, 0.14];
-  const count = 3;
+  const spread = [-0.2, -0.07, 0.07, 0.2];
+  const count = 4;
   const selected = spread.slice(0, count).map((v, idx, arr) => spread[Math.floor((spread.length - count) / 2) + idx]);
 
   selected.forEach((offset) => {
@@ -537,8 +564,8 @@ function bossFire() {
     bullet.setActive(true).setVisible(true);
     bullet.body.enable = true;
     bullet.setDepth(2);
-    bullet.body.velocity.x = offset * 680;
-    bullet.body.velocity.y = 270;
+    bullet.body.velocity.x = offset * 760;
+    bullet.body.velocity.y = 340;
   });
 }
 
