@@ -1,6 +1,6 @@
 const GAME_WIDTH = 900;
 const GAME_HEIGHT = 700;
-const GAME_VERSION = 'v0.2.1';
+const GAME_VERSION = 'v0.2.3';
 const STAGE_ROWS = [
   [1, 1, 1, 1],
   [2, 1, 1, 1],
@@ -14,9 +14,9 @@ const STAGE_ROWS = [
 ];
 const BOSS_STAGE = 10;
 const ITEM_DROP_RATES = {
-  shield: 0.2,
-  power: 0.2,
-  life: 0.02,
+  shield: 0.03,
+  power: 0.05,
+  life: 0.01,
 };
 
 const State = {
@@ -34,6 +34,10 @@ const config = {
   height: GAME_HEIGHT,
   parent: 'game-container',
   backgroundColor: '#030712',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
   physics: {
     default: 'arcade',
     arcade: {
@@ -99,6 +103,8 @@ let bossPatternAt = 0;
 let bossDirection = 1;
 let invulnerableUntil = 0;
 let bossHitOverlap = null;
+let bossDamageCooldownUntil = 0;
+let touchTargetX = null;
 
 function preload() {
   createTextures(this);
@@ -210,6 +216,18 @@ function create() {
   keys = this.input.keyboard.addKeys('A,D,SPACE');
   enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
+  this.input.on('pointerdown', (pointer) => {
+    touchTargetX = pointer.worldX;
+  });
+  this.input.on('pointermove', (pointer) => {
+    if (pointer.isDown) {
+      touchTargetX = pointer.worldX;
+    }
+  });
+  this.input.on('pointerup', () => {
+    touchTargetX = null;
+  });
+
   this.physics.add.overlap(playerBullets, enemies, onBulletHitEnemy, null, this);
   this.physics.add.overlap(enemyBullets, player, onEnemyBulletHitPlayer, null, this);
   this.physics.add.overlap(enemies, player, onEnemyCrashPlayer, null, this);
@@ -249,6 +267,13 @@ function update(time, delta) {
 
 function handlePlayerMovement() {
   player.setVelocityX(0);
+  if (touchTargetX !== null) {
+    const deltaX = touchTargetX - player.x;
+    if (Math.abs(deltaX) > 12) {
+      player.setVelocityX(Phaser.Math.Clamp(deltaX * 5.5, -430, 430));
+    }
+    return;
+  }
   if (cursors.left.isDown || keys.A.isDown) {
     player.setVelocityX(-390);
   } else if (cursors.right.isDown || keys.D.isDown) {
@@ -342,7 +367,9 @@ function resetRun(showReady) {
   bossFireAt = 0;
   bossPatternAt = 0;
   bossDirection = 1;
+  bossDamageCooldownUntil = 0;
   invulnerableUntil = 0;
+  touchTargetX = null;
 
   clearGroup(playerBullets);
   clearGroup(enemyBullets);
@@ -489,7 +516,7 @@ function startBossBattle() {
 
   boss = this.physics.add.image(GAME_WIDTH / 2, 120, 'boss');
   boss.setDepth(4);
-  boss.hp = 70;
+  boss.hp = 120;
   bossMaxHp = boss.hp;
   boss.body.setSize(120, 72);
   bossHitOverlap = this.physics.add.overlap(playerBullets, boss, onBulletHitEnemy, null, this);
@@ -533,6 +560,8 @@ function onBulletHitEnemy(bullet, enemy) {
   bullet.disableBody(true, true);
 
   if (enemy === boss) {
+    if (this.time.now < bossDamageCooldownUntil) return;
+    bossDamageCooldownUntil = this.time.now + 90;
     boss.hp -= 1;
     emitBurst.call(this, enemy.x, enemy.y, 8);
     updateBossBar();

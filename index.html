@@ -2,20 +2,23 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
   <title>Galaxy Defender</title>
   <link rel="stylesheet" href="./style.css" />
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
 </head>
 <body>
   <div class="page">
-    <div class="hud-guide">
-      <h1>Galaxy Defender</h1>
-      <p>이동: ← → 또는 A / D</p>
-      <p>발사: Space</p>
-      <p>강화: P 아이템 / 실드: S 아이템</p>
-      <p>시작/재시작: Enter</p>
-    </div>
+    <details class="help-drawer">
+      <summary>How To Play</summary>
+      <div class="help-panel">
+        <h1>Galaxy Defender</h1>
+        <p>Move: touch-drag on mobile, or use A / D</p>
+        <p>Fire: auto fire</p>
+        <p>Items: P power / S shield / L life</p>
+        <p>Start: tap the screen or press Enter</p>
+      </div>
+    </details>
     <div id="game-container"></div>
   </div>
 
