@@ -1,6 +1,6 @@
 const GAME_WIDTH = 900;
 const GAME_HEIGHT = 700;
-const GAME_VERSION = 'v0.2.8';
+const GAME_VERSION = 'v0.2.9';
 const STAGE_ROWS = [
   [1, 1, 1, 1],
   [2, 1, 1, 1],
@@ -102,7 +102,6 @@ let bossFireAt = 0;
 let bossPatternAt = 0;
 let bossDirection = 1;
 let invulnerableUntil = 0;
-let bossHitOverlap = null;
 let bossDamageCooldownUntil = 0;
 let touchTargetX = null;
 let bossBattleStarted = false;
@@ -329,6 +328,10 @@ function runFormationPhase(time) {
 function runBossPhase(time) {
   if (!boss || !boss.active) return;
 
+  this.physics.overlap(playerBullets, boss, onBulletHitEnemy, null, this);
+  boss.setActive(true).setVisible(true);
+  boss.setAlpha(1);
+
   boss.x += bossDirection * 3.6;
   if (boss.x < 100 || boss.x > GAME_WIDTH - 100) {
     bossDirection *= -1;
@@ -386,10 +389,6 @@ function resetRun(showReady) {
   if (boss) {
     boss.destroy();
     boss = null;
-  }
-  if (bossHitOverlap) {
-    bossHitOverlap.destroy();
-    bossHitOverlap = null;
   }
   setBossBarVisible(false);
 
@@ -530,22 +529,18 @@ function startBossBattle() {
     boss.destroy();
     boss = null;
   }
-  if (bossHitOverlap) {
-    bossHitOverlap.destroy();
-    bossHitOverlap = null;
-  }
 
   boss = this.physics.add.image(GAME_WIDTH / 2, 84, 'boss');
   boss.setDepth(4);
   boss.setScale(1.35);
   boss.setAlpha(1);
+  boss.setImmovable(true);
   boss.setActive(true).setVisible(true);
   boss.body.enable = true;
   boss.hp = 2000;
   bossMaxHp = boss.hp;
   bossDamageCooldownUntil = 0;
   boss.body.setSize(128, 72);
-  bossHitOverlap = this.physics.add.overlap(playerBullets, boss, onBulletHitEnemy, null, this);
   setBossBarVisible(true);
   updateBossBar();
 }
@@ -598,10 +593,6 @@ function onBulletHitEnemy(bullet, enemy) {
       boss = null;
       bossMaxHp = 0;
       bossBattleStarted = false;
-      if (bossHitOverlap) {
-        bossHitOverlap.destroy();
-        bossHitOverlap = null;
-      }
       setBossBarVisible(false);
       updateHud();
       triggerVictory.call(this);
