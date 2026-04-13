@@ -1,13 +1,30 @@
 const GAME_WIDTH = 900;
 const GAME_HEIGHT = 700;
-const GAME_VERSION = 'v0.2.0';
-const BOSS_WAVE_INTERVAL = 10;
+const GAME_VERSION = 'v0.4.0';
+const STAGE_ROWS = [
+  [1, 1, 1, 1],
+  [2, 1, 1, 1],
+  [2, 2, 1, 1],
+  [2, 2, 2, 1],
+  [2, 2, 2, 2],
+  [3, 2, 2, 2],
+  [3, 3, 2, 2],
+  [3, 3, 3, 2],
+  [3, 3, 3, 3],
+];
+const BOSS_STAGE = 10;
+const ITEM_DROP_RATES = {
+  shield: 0.2,
+  power: 0.2,
+  life: 0.02,
+};
 
 const State = {
   BOOT: 'boot',
   READY: 'ready',
   PLAYING: 'playing',
   BOSS: 'boss',
+  VICTORY: 'victory',
   GAME_OVER: 'game_over',
 };
 
@@ -53,7 +70,6 @@ let score = 0;
 let bestScore = 0;
 let lives = 3;
 let level = 1;
-let wave = 0;
 let waveEnemiesRemaining = 0;
 let shield = 0;
 let powerLevel = 1;
@@ -68,17 +84,20 @@ let versionText;
 let centerText;
 let helperText;
 let waveText;
-let bossHealthText;
+let bossBarLabel;
+let bossBarBg;
+let bossBarFill;
 
 let lastFired = 0;
 let nextFormationAt = 0;
 let formationFireAt = 0;
-let nextPowerDropAt = 0;
 let boss = null;
+let bossMaxHp = 0;
 let bossFireAt = 0;
 let bossPatternAt = 0;
 let bossDirection = 1;
 let invulnerableUntil = 0;
+let bossHitOverlap = null;
 
 function preload() {
   createTextures(this);
@@ -134,7 +153,7 @@ function create() {
   scoreText = makeUIText(this, 20, 18, 'SCORE: 0', 24, '#ffffff', true);
   bestText = makeUIText(this, 20, 48, `BEST: ${bestScore}`, 18, '#a5d8ff');
   livesText = makeUIText(this, 20, 72, 'LIVES: 3', 18, '#ffd6d6');
-  levelText = makeUIText(this, GAME_WIDTH - 160, 18, 'LEVEL: 1', 20, '#d6ecff', true);
+  levelText = makeUIText(this, GAME_WIDTH - 170, 18, 'STAGE: 1', 20, '#d6ecff', true);
   powerText = makeUIText(this, GAME_WIDTH - 160, 48, 'POWER: 1', 18, '#fff3b0');
   versionText = makeUIText(this, 20, GAME_HEIGHT - 34, `VER ${GAME_VERSION}`, 14, '#7dd3fc');
 
@@ -156,7 +175,7 @@ function create() {
   helperText = this.add.text(
     GAME_WIDTH / 2,
     GAME_HEIGHT / 2 + 35,
-    'MOVE: ← → or A / D\nFIRE: SPACE\nCOLLECT P TO UPGRADE / S FOR SHIELD',
+    'MOVE: LEFT / RIGHT or A / D\nFIRE: SPACE\nCOLLECT P / S / L ITEMS',
     {
       fontSize: '19px',
       align: 'center',
@@ -175,13 +194,16 @@ function create() {
     strokeThickness: 5,
   }).setOrigin(0.5).setDepth(20).setAlpha(0);
 
-  bossHealthText = this.add.text(GAME_WIDTH / 2, 20, '', {
-    fontSize: '22px',
-    color: '#ffb3b3',
-    fontStyle: 'bold',
-    stroke: '#000000',
-    strokeThickness: 4,
-  }).setOrigin(0.5, 0).setDepth(20).setVisible(false);
+  bossBarLabel = makeUIText(this, GAME_WIDTH / 2 - 178, 18, 'BOSS', 18, '#ffd6d6', true).setVisible(false);
+  bossBarBg = this.add.rectangle(GAME_WIDTH / 2 + 18, 29, 268, 20, 0x2b0b12, 0.95)
+    .setOrigin(0.5)
+    .setStrokeStyle(2, 0xffd6d6, 0.75)
+    .setDepth(20)
+    .setVisible(false);
+  bossBarFill = this.add.rectangle(GAME_WIDTH / 2 + 18, 29, 258, 12, 0xfb7185, 1)
+    .setOrigin(0.5)
+    .setDepth(21)
+    .setVisible(false);
 
   cursors = this.input.keyboard.createCursorKeys();
   keys = this.input.keyboard.addKeys('A,D,SPACE');
@@ -201,7 +223,7 @@ function update(time, delta) {
   scrollStars(starsNear, delta);
   bobStars(starsNear, time);
 
-  if (sceneState === State.READY || sceneState === State.GAME_OVER) {
+  if (sceneState === State.READY || sceneState === State.GAME_OVER || sceneState === State.VICTORY) {
     if (Phaser.Input.Keyboard.JustDown(enterKey)) {
       startNewGame.call(this);
     }
@@ -234,7 +256,8 @@ function handlePlayerMovement() {
 }
 
 function handlePlayerFiring(time) {
-  const fireGap = time < rapidUntil ? 95 : 175;
+  const baseGap = Math.max(80, 170 - (powerLevel - 1) * 7);
+  const fireGap = time < rapidUntil ? Math.max(55, baseGap - 30) : baseGap;
   if ((cursors.space.isDown || keys.SPACE.isDown) && time > lastFired) {
     firePlayerBullets.call(this);
     lastFired = time + fireGap;
@@ -250,24 +273,20 @@ function runFormationPhase(time) {
   updateFormationMovement(time);
 
   if (time > formationFireAt && countLivingEnemies() > 0) {
-    formationFireAt = time + Math.max(320, 900 - level * 45);
+    formationFireAt = time + Math.max(520, 1200 - level * 45);
     fireFromFormation.call(this);
-  }
-
-  if (time > nextPowerDropAt && countLivingEnemies() > 0) {
-    maybeDropTimedPowerUp.call(this);
-    nextPowerDropAt = time + 6000;
   }
 
   if (waveEnemiesRemaining === 0 && countLivingEnemies() === 0 && time < nextFormationAt) {
     enemyFormation.removeAll();
-    wave += 1;
-    if (wave % BOSS_WAVE_INTERVAL === 0) {
+    if (level === BOSS_STAGE - 1) {
+      level = BOSS_STAGE;
+      updateHud();
       startBossBattle.call(this);
     } else {
       level += 1;
       updateHud();
-      announce.call(this, `WAVE ${wave + 1}`);
+      announce.call(this, `STAGE ${level}`);
       nextFormationAt = time + 1200;
     }
   }
@@ -276,7 +295,7 @@ function runFormationPhase(time) {
 function runBossPhase(time) {
   if (!boss || !boss.active) return;
 
-  boss.x += bossDirection * (2.2 + level * 0.08);
+  boss.x += bossDirection * 2.8;
   if (boss.x < 100 || boss.x > GAME_WIDTH - 100) {
     bossDirection *= -1;
   }
@@ -287,11 +306,11 @@ function runBossPhase(time) {
   }
 
   if (time > bossFireAt) {
-    bossFireAt = time + Math.max(350, 700 - level * 30);
+    bossFireAt = time + 520;
     bossFire.call(this);
   }
 
-  bossHealthText.setText(`BOSS HP: ${boss.hp}`);
+  updateBossBar();
 }
 
 function startNewGame() {
@@ -299,7 +318,7 @@ function startNewGame() {
   sceneState = State.PLAYING;
   centerText.setVisible(false);
   helperText.setVisible(false);
-  announce.call(this, 'WAVE 1');
+  announce.call(this, 'STAGE 1');
   nextFormationAt = 300;
 }
 
@@ -307,7 +326,6 @@ function resetRun(showReady) {
   score = 0;
   lives = 3;
   level = 1;
-  wave = 0;
   waveEnemiesRemaining = 0;
   shield = 0;
   powerLevel = 1;
@@ -315,7 +333,7 @@ function resetRun(showReady) {
   lastFired = 0;
   nextFormationAt = 0;
   formationFireAt = 0;
-  nextPowerDropAt = 3000;
+  bossMaxHp = 0;
   bossFireAt = 0;
   bossPatternAt = 0;
   bossDirection = 1;
@@ -330,7 +348,11 @@ function resetRun(showReady) {
     boss.destroy();
     boss = null;
   }
-  bossHealthText.setVisible(false);
+  if (bossHitOverlap) {
+    bossHitOverlap.destroy();
+    bossHitOverlap = null;
+  }
+  setBossBarVisible(false);
 
   player.setPosition(GAME_WIDTH / 2, GAME_HEIGHT - 78);
   player.setAlpha(1);
@@ -343,24 +365,27 @@ function resetRun(showReady) {
   if (showReady) {
     sceneState = State.READY;
     centerText.setText('GALAXY DEFENDER\nPRESS ENTER').setVisible(true);
-    helperText.setText('MOVE: ← → or A / D\nFIRE: SPACE\nCOLLECT P TO UPGRADE / S FOR SHIELD').setVisible(true);
+    helperText.setText('MOVE: LEFT / RIGHT or A / D\nFIRE: SPACE\nCOLLECT P / S / L ITEMS').setVisible(true);
   }
 }
 
 function spawnFormation() {
   enemyFormation.removeAll();
 
-  const rows = Math.min(3 + Math.floor(level / 2), 5);
+  const rows = STAGE_ROWS[level - 1];
+  if (!rows) return;
   const cols = 7;
   const startX = 165;
   const startY = 110;
   const spacingX = 82;
   const spacingY = 58;
 
-  for (let r = 0; r < rows; r += 1) {
+  for (let r = 0; r < rows.length; r += 1) {
     for (let c = 0; c < cols; c += 1) {
-      const enemy = enemies.get(startX + c * spacingX, startY + r * spacingY, 'enemy');
+      const tier = rows[r];
+      const enemy = enemies.get(startX + c * spacingX, startY + r * spacingY, `enemy${tier}`);
       if (!enemy) continue;
+      enemy.setTexture(`enemy${tier}`);
       enemy.setActive(true).setVisible(true);
       enemy.body.enable = true;
       enemy.setDepth(3);
@@ -368,17 +393,19 @@ function spawnFormation() {
       enemy.baseY = startY + r * spacingY;
       enemy.row = r;
       enemy.col = c;
-      enemy.hp = 1 + (level >= 6 && r === 0 ? 1 : 0);
+      enemy.tier = tier;
+      enemy.hp = tier;
       enemy.inFormation = true;
       enemy.diving = false;
       enemy.angleOffset = (c * 0.55) + (r * 0.25);
+      enemy.rotation = 0;
+      enemy.clearTint();
       enemyFormation.add(enemy);
     }
   }
 
-  waveEnemiesRemaining = rows * cols;
+  waveEnemiesRemaining = rows.length * cols;
   formationFireAt = 1200;
-  nextPowerDropAt = 5000;
 }
 
 function updateFormationMovement(time) {
@@ -412,7 +439,7 @@ function fireFromFormation() {
 
   const shooter = Phaser.Utils.Array.GetRandom(shooters);
 
-  if (Math.random() < 0.34) {
+  if (Math.random() < 0.2) {
     startDive(shooter);
   } else {
     const bullet = enemyBullets.get(shooter.x, shooter.y + 12, 'enemyBullet');
@@ -420,7 +447,7 @@ function fireFromFormation() {
     bullet.setActive(true).setVisible(true);
     bullet.body.enable = true;
     bullet.setDepth(2);
-    this.physics.moveTo(bullet, player.x, player.y, 260 + level * 18);
+    this.physics.moveTo(bullet, player.x, player.y, 220 + Math.min(level, 9) * 10);
   }
 }
 
@@ -428,9 +455,9 @@ function startDive(enemy) {
   if (!enemy || !enemy.active || enemy.diving) return;
   enemy.inFormation = false;
   enemy.diving = true;
-  enemy.diveSpeedY = 2.8 + level * 0.32;
-  enemy.diveSpeedX = Phaser.Math.Clamp((player.x - enemy.x) * 0.01, -2.4, 2.4);
-  enemy.spinSpeed = Phaser.Math.FloatBetween(-0.03, 0.03);
+  enemy.diveSpeedY = 2.2 + level * 0.18;
+  enemy.diveSpeedX = Phaser.Math.Clamp((player.x - enemy.x) * 0.007, -1.6, 1.6);
+  enemy.spinSpeed = Phaser.Math.FloatBetween(-0.02, 0.02);
   enemyFormation.remove(enemy);
 }
 
@@ -452,20 +479,23 @@ function startBossBattle() {
   waveEnemiesRemaining = 0;
   enemyFormation.removeAll();
   clearGroup(enemies);
-  announce.call(this, 'WARNING: BOSS APPROACHING');
+  announce.call(this, 'STAGE 10 BOSS');
 
   boss = this.physics.add.image(GAME_WIDTH / 2, 120, 'boss');
   boss.setDepth(4);
-  boss.hp = 24 + level * 3;
+  boss.hp = 70;
+  bossMaxHp = boss.hp;
   boss.body.setSize(120, 72);
-  bossHealthText.setVisible(true).setText(`BOSS HP: ${boss.hp}`);
+  bossHitOverlap = this.physics.add.overlap(playerBullets, boss, onBulletHitEnemy, null, this);
+  setBossBarVisible(true);
+  updateBossBar();
 }
 
 function bossFire() {
   if (!boss || !boss.active) return;
 
-  const spread = [-0.22, -0.1, 0, 0.1, 0.22];
-  const count = level >= 6 ? 5 : 3;
+  const spread = [-0.14, 0, 0.14];
+  const count = 3;
   const selected = spread.slice(0, count).map((v, idx, arr) => spread[Math.floor((spread.length - count) / 2) + idx]);
 
   selected.forEach((offset) => {
@@ -474,20 +504,22 @@ function bossFire() {
     bullet.setActive(true).setVisible(true);
     bullet.body.enable = true;
     bullet.setDepth(2);
-    bullet.body.velocity.x = offset * 900;
-    bullet.body.velocity.y = 300 + level * 12;
+    bullet.body.velocity.x = offset * 680;
+    bullet.body.velocity.y = 270;
   });
 }
 
 function firePlayerBullets() {
-  const offsets = powerLevel >= 3 ? [-16, 0, 16] : powerLevel === 2 ? [-10, 10] : [0];
-  offsets.forEach((offset) => {
+  const shotConfig = getPlayerShotConfig();
+  shotConfig.offsets.forEach((offset, idx) => {
     const bullet = playerBullets.get(player.x + offset, player.y - 28, 'bullet');
     if (!bullet) return;
     bullet.setActive(true).setVisible(true);
     bullet.body.enable = true;
     bullet.setDepth(2);
-    bullet.setVelocity(0, -560);
+    bullet.setTint(shotConfig.tint);
+    bullet.setScale(shotConfig.scale);
+    bullet.setVelocity(shotConfig.spread[idx] || 0, -shotConfig.speed);
   });
 }
 
@@ -497,17 +529,20 @@ function onBulletHitEnemy(bullet, enemy) {
   if (enemy === boss) {
     boss.hp -= 1;
     emitBurst.call(this, enemy.x, enemy.y, 8);
+    updateBossBar();
     if (boss.hp <= 0) {
       score += 1500;
       emitBurst.call(this, enemy.x, enemy.y, 28);
       boss.destroy();
       boss = null;
-      bossHealthText.setVisible(false);
-      level += 1;
+      bossMaxHp = 0;
+      if (bossHitOverlap) {
+        bossHitOverlap.destroy();
+        bossHitOverlap = null;
+      }
+      setBossBarVisible(false);
       updateHud();
-      sceneState = State.PLAYING;
-      announce.call(this, 'BOSS DEFEATED');
-      nextFormationAt = this.time.now + 1500;
+      triggerVictory.call(this);
     } else {
       score += 30;
       updateHud();
@@ -525,9 +560,7 @@ function onBulletHitEnemy(bullet, enemy) {
   }
 
   emitBurst.call(this, enemy.x, enemy.y, 12);
-  if (Math.random() < 0.12) {
-    spawnPowerUp.call(this, enemy.x, enemy.y, Math.random() < 0.72 ? 'powerUpP' : 'powerUpS');
-  }
+  maybeDropEnemyItem.call(this, enemy.x, enemy.y);
   waveEnemiesRemaining = Math.max(0, waveEnemiesRemaining - 1);
   enemyFormation.remove(enemy);
   enemy.destroy();
@@ -542,6 +575,8 @@ function onEnemyBulletHitPlayer(playerObj, bullet) {
 
 function onEnemyCrashPlayer(playerObj, enemy) {
   emitBurst.call(this, enemy.x, enemy.y, 10);
+  waveEnemiesRemaining = Math.max(0, waveEnemiesRemaining - 1);
+  enemyFormation.remove(enemy);
   enemy.destroy();
   damagePlayer.call(this);
 }
@@ -573,25 +608,38 @@ function onPickupPowerUp(playerObj, item) {
   item.disableBody(true, true);
 
   if (kind === 'powerUpP') {
-    powerLevel = Math.min(3, powerLevel + 1);
-    rapidUntil = this.time.now + 5000;
+    powerLevel = Math.min(10, powerLevel + 1);
+    rapidUntil = this.time.now + 5500;
     announce.call(this, 'POWER UP');
-  } else {
+  } else if (kind === 'powerUpS') {
     shield = Math.min(2, shield + 1);
     announce.call(this, 'SHIELD +1');
+  } else if (kind === 'powerUpL') {
+    lives += 1;
+    announce.call(this, 'LIFE +1');
   }
   updateHud();
 }
 
-function maybeDropTimedPowerUp() {
-  if (Math.random() < 0.42) {
-    spawnPowerUp.call(this, Phaser.Math.Between(120, GAME_WIDTH - 120), 120, Math.random() < 0.6 ? 'powerUpP' : 'powerUpS');
+function maybeDropEnemyItem(x, y) {
+  const roll = Math.random();
+  if (roll < ITEM_DROP_RATES.life) {
+    spawnPowerUp.call(this, x, y, 'powerUpL');
+    return;
+  }
+  if (roll < ITEM_DROP_RATES.life + ITEM_DROP_RATES.shield) {
+    spawnPowerUp.call(this, x, y, 'powerUpS');
+    return;
+  }
+  if (roll < ITEM_DROP_RATES.life + ITEM_DROP_RATES.shield + ITEM_DROP_RATES.power) {
+    spawnPowerUp.call(this, x, y, 'powerUpP');
   }
 }
 
 function spawnPowerUp(x, y, key) {
   const item = powerUps.get(x, y, key);
   if (!item) return;
+  item.setTexture(key);
   item.setActive(true).setVisible(true);
   item.body.enable = true;
   item.setDepth(2);
@@ -602,7 +650,20 @@ function triggerGameOver() {
   sceneState = State.GAME_OVER;
   centerText.setText('GAME OVER\nPRESS ENTER').setVisible(true);
   helperText.setText(`FINAL SCORE: ${score}`).setVisible(true);
-  bossHealthText.setVisible(false);
+  setBossBarVisible(false);
+
+  if (score > bestScore) {
+    bestScore = score;
+    localStorage.setItem('galaxyDefenderBest', String(bestScore));
+  }
+  updateHud();
+}
+
+function triggerVictory() {
+  sceneState = State.VICTORY;
+  centerText.setText('YOU WIN\nPRESS ENTER').setVisible(true);
+  helperText.setText(`FINAL SCORE: ${score}`).setVisible(true);
+  setBossBarVisible(false);
 
   if (score > bestScore) {
     bestScore = score;
@@ -615,8 +676,40 @@ function updateHud() {
   scoreText.setText(`SCORE: ${score}`);
   bestText.setText(`BEST: ${bestScore}`);
   livesText.setText(`LIVES: ${lives}${shield > 0 ? `  SHIELD:${shield}` : ''}`);
-  levelText.setText(`LEVEL: ${level}`);
+  levelText.setText(`STAGE: ${level}`);
   powerText.setText(`POWER: ${powerLevel}${rapidUntil > 0 ? ' +' : ''}`);
+}
+
+function getPlayerShotConfig() {
+  if (powerLevel >= 10) {
+    return { offsets: [-30, -18, -8, 0, 8, 18, 30], spread: [-150, -90, -35, 0, 35, 90, 150], speed: 740, tint: 0xfef08a, scale: 1.35 };
+  }
+  if (powerLevel >= 8) {
+    return { offsets: [-24, -12, 0, 12, 24], spread: [-120, -55, 0, 55, 120], speed: 710, tint: 0x93c5fd, scale: 1.25 };
+  }
+  if (powerLevel >= 6) {
+    return { offsets: [-20, -10, 0, 10, 20], spread: [-80, -30, 0, 30, 80], speed: 680, tint: 0x67e8f9, scale: 1.18 };
+  }
+  if (powerLevel >= 4) {
+    return { offsets: [-16, 0, 16], spread: [-45, 0, 45], speed: 650, tint: 0xc4b5fd, scale: 1.1 };
+  }
+  if (powerLevel >= 2) {
+    return { offsets: [-10, 10], spread: [-20, 20], speed: 610, tint: 0xbfdbfe, scale: 1.05 };
+  }
+  return { offsets: [0], spread: [0], speed: 560, tint: 0x93c5fd, scale: 1 };
+}
+
+function updateBossBar() {
+  if (!boss || !boss.active || bossMaxHp <= 0) return;
+  const ratio = Phaser.Math.Clamp(boss.hp / bossMaxHp, 0, 1);
+  bossBarFill.width = 258 * ratio;
+  bossBarFill.x = (GAME_WIDTH / 2 + 18) - ((258 - bossBarFill.width) / 2);
+}
+
+function setBossBarVisible(visible) {
+  bossBarLabel.setVisible(visible);
+  bossBarBg.setVisible(visible);
+  bossBarFill.setVisible(visible);
 }
 
 function updatePlayerVisuals(time) {
@@ -712,7 +805,35 @@ function createTextures(scene) {
   g.fillCircle(23, 22, 5);
   g.fillStyle(0xffedd5, 1);
   g.fillRect(8, 28, 30, 5);
-  g.generateTexture('enemy', 46, 34);
+  g.generateTexture('enemy1', 46, 34);
+  g.clear();
+
+  g.fillStyle(0xf59e0b, 1);
+  g.fillRoundedRect(0, 9, 46, 25, 8);
+  g.fillTriangle(6, 11, 16, 0, 20, 11);
+  g.fillTriangle(40, 11, 30, 0, 26, 11);
+  g.fillStyle(0xfffbeb, 1);
+  g.fillCircle(23, 22, 5);
+  g.fillStyle(0x7c2d12, 1);
+  g.fillRect(7, 27, 32, 6);
+  g.lineStyle(2, 0xfef3c7, 1);
+  g.strokeRect(11, 13, 24, 14);
+  g.generateTexture('enemy2', 46, 34);
+  g.clear();
+
+  g.fillStyle(0xa78bfa, 1);
+  g.fillRoundedRect(0, 8, 46, 26, 9);
+  g.fillTriangle(5, 12, 16, 0, 21, 12);
+  g.fillTriangle(41, 12, 30, 0, 25, 12);
+  g.fillStyle(0xf5f3ff, 1);
+  g.fillCircle(23, 22, 5);
+  g.fillStyle(0x312e81, 1);
+  g.fillRect(6, 27, 34, 6);
+  g.lineStyle(2, 0xe9d5ff, 1);
+  g.strokeRect(9, 12, 28, 16);
+  g.fillStyle(0xe9d5ff, 1);
+  g.fillRect(21, 6, 4, 8);
+  g.generateTexture('enemy3', 46, 34);
   g.clear();
 
   g.fillStyle(0xc084fc, 1);
@@ -769,6 +890,14 @@ function createTextures(scene) {
   g.lineStyle(3, 0x854d0e, 1);
   g.strokeCircle(12, 12, 6);
   g.generateTexture('powerUpS', 24, 24);
+  g.clear();
+
+  g.fillStyle(0xfca5a5, 1);
+  g.fillRoundedRect(0, 0, 24, 24, 6);
+  g.fillStyle(0x7f1d1d, 1);
+  g.fillRect(10, 4, 4, 16);
+  g.fillRect(4, 10, 16, 4);
+  g.generateTexture('powerUpL', 24, 24);
   g.clear();
 }
 
