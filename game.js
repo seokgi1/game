@@ -1,5 +1,7 @@
 const GAME_WIDTH = 900;
 const GAME_HEIGHT = 700;
+const GAME_VERSION = 'v0.2.0';
+const BOSS_WAVE_INTERVAL = 10;
 
 const State = {
   BOOT: 'boot',
@@ -56,13 +58,13 @@ let waveEnemiesRemaining = 0;
 let shield = 0;
 let powerLevel = 1;
 let rapidUntil = 0;
-let awaitingNextWave = false;
 
 let scoreText;
 let livesText;
 let levelText;
 let powerText;
 let bestText;
+let versionText;
 let centerText;
 let helperText;
 let waveText;
@@ -134,6 +136,7 @@ function create() {
   livesText = makeUIText(this, 20, 72, 'LIVES: 3', 18, '#ffd6d6');
   levelText = makeUIText(this, GAME_WIDTH - 160, 18, 'LEVEL: 1', 20, '#d6ecff', true);
   powerText = makeUIText(this, GAME_WIDTH - 160, 48, 'POWER: 1', 18, '#fff3b0');
+  versionText = makeUIText(this, 20, GAME_HEIGHT - 34, `VER ${GAME_VERSION}`, 14, '#7dd3fc');
 
   centerText = this.add.text(
     GAME_WIDTH / 2,
@@ -239,7 +242,7 @@ function handlePlayerFiring(time) {
 }
 
 function runFormationPhase(time) {
-  if (time >= nextFormationAt && !awaitingNextWave && waveEnemiesRemaining === 0 && countLivingEnemies() === 0) {
+  if (time >= nextFormationAt && waveEnemiesRemaining === 0 && countLivingEnemies() === 0) {
     spawnFormation.call(this);
     nextFormationAt = time + 1000000;
   }
@@ -256,11 +259,10 @@ function runFormationPhase(time) {
     nextPowerDropAt = time + 6000;
   }
 
-  if (!awaitingNextWave && waveEnemiesRemaining === 0 && countLivingEnemies() === 0) {
-    awaitingNextWave = true;
+  if (waveEnemiesRemaining === 0 && countLivingEnemies() === 0 && time < nextFormationAt) {
     enemyFormation.removeAll();
     wave += 1;
-    if (wave % 4 === 0) {
+    if (wave % BOSS_WAVE_INTERVAL === 0) {
       startBossBattle.call(this);
     } else {
       level += 1;
@@ -310,7 +312,6 @@ function resetRun(showReady) {
   shield = 0;
   powerLevel = 1;
   rapidUntil = 0;
-  awaitingNextWave = false;
   lastFired = 0;
   nextFormationAt = 0;
   formationFireAt = 0;
@@ -376,7 +377,6 @@ function spawnFormation() {
   }
 
   waveEnemiesRemaining = rows * cols;
-  awaitingNextWave = false;
   formationFireAt = 1200;
   nextPowerDropAt = 5000;
 }
@@ -449,7 +449,6 @@ function resetDivingEnemy(enemy) {
 
 function startBossBattle() {
   sceneState = State.BOSS;
-  awaitingNextWave = false;
   waveEnemiesRemaining = 0;
   enemyFormation.removeAll();
   clearGroup(enemies);
