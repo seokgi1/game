@@ -1,6 +1,6 @@
 const GAME_WIDTH = 900;
 const GAME_HEIGHT = 700;
-const GAME_VERSION = 'v0.2.7';
+const GAME_VERSION = 'v0.2.8';
 const STAGE_ROWS = [
   [1, 1, 1, 1],
   [2, 1, 1, 1],
@@ -541,7 +541,7 @@ function startBossBattle() {
   boss.setAlpha(1);
   boss.setActive(true).setVisible(true);
   boss.body.enable = true;
-  boss.hp = 120;
+  boss.hp = 2000;
   bossMaxHp = boss.hp;
   bossDamageCooldownUntil = 0;
   boss.body.setSize(128, 72);
