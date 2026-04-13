@@ -1,6 +1,6 @@
 const GAME_WIDTH = 900;
 const GAME_HEIGHT = 700;
-const GAME_VERSION = 'v0.2.6';
+const GAME_VERSION = 'v0.2.7';
 const STAGE_ROWS = [
   [1, 1, 1, 1],
   [2, 1, 1, 1],
@@ -105,6 +105,7 @@ let invulnerableUntil = 0;
 let bossHitOverlap = null;
 let bossDamageCooldownUntil = 0;
 let touchTargetX = null;
+let bossBattleStarted = false;
 
 function preload() {
   createTextures(this);
@@ -291,7 +292,7 @@ function handlePlayerFiring(time) {
 }
 
 function runFormationPhase(time) {
-  if (level >= BOSS_STAGE) {
+  if (level >= BOSS_STAGE && !bossBattleStarted) {
     startBossBattle.call(this);
     return;
   }
@@ -326,12 +327,7 @@ function runFormationPhase(time) {
 }
 
 function runBossPhase(time) {
-  if (!boss || !boss.active) {
-    startBossBattle.call(this);
-    return;
-  }
-
-  this.physics.overlap(playerBullets, boss, onBulletHitEnemy, null, this);
+  if (!boss || !boss.active) return;
 
   boss.x += bossDirection * 3.6;
   if (boss.x < 100 || boss.x > GAME_WIDTH - 100) {
@@ -380,6 +376,7 @@ function resetRun(showReady) {
   bossDamageCooldownUntil = 0;
   invulnerableUntil = 0;
   touchTargetX = null;
+  bossBattleStarted = false;
 
   clearGroup(playerBullets);
   clearGroup(enemyBullets);
@@ -518,9 +515,10 @@ function resetDivingEnemy(enemy) {
 }
 
 function startBossBattle() {
-  if (sceneState === State.BOSS && boss && boss.active) return;
+  if (bossBattleStarted) return;
 
   sceneState = State.BOSS;
+  bossBattleStarted = true;
   waveEnemiesRemaining = 0;
   stageTransitionPending = false;
   enemyFormation.removeAll();
@@ -545,6 +543,7 @@ function startBossBattle() {
   boss.body.enable = true;
   boss.hp = 120;
   bossMaxHp = boss.hp;
+  bossDamageCooldownUntil = 0;
   boss.body.setSize(128, 72);
   bossHitOverlap = this.physics.add.overlap(playerBullets, boss, onBulletHitEnemy, null, this);
   setBossBarVisible(true);
@@ -598,6 +597,7 @@ function onBulletHitEnemy(bullet, enemy) {
       boss.destroy();
       boss = null;
       bossMaxHp = 0;
+      bossBattleStarted = false;
       if (bossHitOverlap) {
         bossHitOverlap.destroy();
         bossHitOverlap = null;
