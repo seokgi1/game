@@ -1,6 +1,9 @@
+const MOBILE_PORTRAIT = typeof window !== 'undefined'
+  && window.innerWidth <= 768
+  && window.innerHeight > window.innerWidth;
 const GAME_WIDTH = 900;
-const GAME_HEIGHT = 700;
-const GAME_VERSION = 'v0.2.9';
+const GAME_HEIGHT = MOBILE_PORTRAIT ? 1100 : 700;
+const GAME_VERSION = 'v0.3.0';
 const STAGE_ROWS = [
   [1, 1, 1, 1],
   [2, 1, 1, 1],
@@ -217,6 +220,10 @@ function create() {
   enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
   this.input.on('pointerdown', (pointer) => {
+    if (sceneState === State.READY || sceneState === State.GAME_OVER || sceneState === State.VICTORY) {
+      startNewGame.call(this);
+      return;
+    }
     touchTargetX = pointer.worldX;
   });
   this.input.on('pointermove', (pointer) => {
@@ -243,7 +250,7 @@ function update(time, delta) {
   bobStars(starsNear, time);
 
   if (sceneState === State.READY || sceneState === State.GAME_OVER || sceneState === State.VICTORY) {
-    if (Phaser.Input.Keyboard.JustDown(enterKey) || this.input.activePointer.justDown) {
+    if (Phaser.Input.Keyboard.JustDown(enterKey)) {
       startNewGame.call(this);
     }
     return;
@@ -328,9 +335,9 @@ function runFormationPhase(time) {
 function runBossPhase(time) {
   if (!boss || !boss.active) return;
 
-  this.physics.overlap(playerBullets, boss, onBulletHitEnemy, null, this);
   boss.setActive(true).setVisible(true);
   boss.setAlpha(1);
+  processBossHits.call(this);
 
   boss.x += bossDirection * 3.6;
   if (boss.x < 100 || boss.x > GAME_WIDTH - 100) {
@@ -619,6 +626,18 @@ function onBulletHitEnemy(bullet, enemy) {
   enemy.destroy();
   score += 100;
   updateHud();
+}
+
+function processBossHits() {
+  if (!boss || !boss.active) return;
+
+  const bossBounds = boss.getBounds();
+  playerBullets.children.iterate((bullet) => {
+    if (!bullet || !bullet.active) return;
+    if (Phaser.Geom.Intersects.RectangleToRectangle(bossBounds, bullet.getBounds())) {
+      onBulletHitEnemy.call(this, bullet, boss);
+    }
+  });
 }
 
 function onEnemyBulletHitPlayer(playerObj, bullet) {
