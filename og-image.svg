@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="180" y1="40" x2="1010" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#16213E"/>
+      <stop offset="0.55" stop-color="#090B19"/>
+      <stop offset="1" stop-color="#02040C"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#E0F2FE"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="title" x1="312" y1="140" x2="312" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFF"/>
+      <stop offset="1" stop-color="#A5F3FC"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" rx="32" fill="url(#bg)"/>
+
+  <g opacity="0.9">
+    <circle cx="183" cy="98" r="2" fill="#FFF"/>
+    <circle cx="244" cy="160" r="3" fill="#E0F2FE"/>
+    <circle cx="339" cy="70" r="2" fill="#FFF"/>
+    <circle cx="412" cy="134" r="2" fill="#BFDBFE"/>
+    <circle cx="507" cy="102" r="3" fill="#FFF"/>
+    <circle cx="645" cy="82" r="2" fill="#FFF"/>
+    <circle cx="742" cy="152" r="3" fill="#DBEAFE"/>
+    <circle cx="858" cy="78" r="2" fill="#FFF"/>
+    <circle cx="941" cy="140" r="3" fill="#E0F2FE"/>
+    <circle cx="1086" cy="110" r="2" fill="#FFF"/>
+    <circle cx="1010" cy="228" r="2" fill="#FFF"/>
+    <circle cx="1120" cy="196" r="3" fill="#DBEAFE"/>
+    <circle cx="186" cy="240" r="2" fill="#FFF"/>
+    <circle cx="82" cy="184" r="3" fill="#DBEAFE"/>
+    <circle cx="98" cy="420" r="2" fill="#FFF"/>
+    <circle cx="212" cy="506" r="3" fill="#DBEAFE"/>
+    <circle cx="930" cy="514" r="2" fill="#FFF"/>
+    <circle cx="1088" cy="474" r="3" fill="#E0F2FE"/>
+  </g>
+
+  <g opacity="0.22" filter="url(#glow)">
+    <ellipse cx="930" cy="180" rx="220" ry="120" fill="#7C3AED"/>
+    <ellipse cx="1000" cy="430" rx="280" ry="150" fill="#0EA5E9"/>
+  </g>
+
+  <g opacity="0.8">
+    <path d="M786 155L840 173L812 205L758 187L786 155Z" fill="#FB7185"/>
+    <path d="M902 214L956 232L928 264L874 246L902 214Z" fill="#F59E0B"/>
+    <path d="M1006 155L1064 173L1030 209L974 191L1006 155Z" fill="#A78BFA"/>
+  </g>
+
+  <g filter="url(#glow)">
+    <path d="M900 92L1040 270L952 262L914 410H886L848 262L760 270L900 92Z" fill="#7DD3FC"/>
+    <path d="M900 172L956 268H844L900 172Z" fill="#F8FAFC"/>
+    <rect x="882" y="262" width="36" height="92" rx="10" fill="#38BDF8"/>
+    <path d="M868 364L900 520L932 364H868Z" fill="url(#beam)"/>
+  </g>
+
+  <g opacity="0.88">
+    <path d="M910 286L952 350" stroke="#93C5FD" stroke-width="6" stroke-linecap="round"/>
+    <path d="M890 286L850 350" stroke="#93C5FD" stroke-width="6" stroke-linecap="round"/>
+    <path d="M900 304L900 372" stroke="#E0F2FE" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <text x="108" y="238" fill="url(#title)" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="700" letter-spacing="6">GALAXY</text>
+    <text x="108" y="330" fill="url(#title)" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="700" letter-spacing="6">DEFENDER</text>
+    <text x="114" y="392" fill="#BAE6FD" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="600" letter-spacing="4">AUTO-FIRE ARCADE SPACE SHOOTER</text>
+  </g>
+
+</svg>

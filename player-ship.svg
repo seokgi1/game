@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="ship-bg" x1="96" y1="40" x2="420" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="thruster" x1="256" y1="290" x2="256" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="0.4" stop-color="#7DD3FC"/>
+      <stop offset="1" stop-color="#0EA5E9"/>
+    </linearGradient>
+    <filter id="ship-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="96" fill="url(#ship-bg)"/>
+
+  <g filter="url(#ship-glow)">
+    <path d="M256 54L374 214L304 208L274 366H238L208 208L138 214L256 54Z" fill="#7DD3FC"/>
+    <path d="M256 126L304 212H208L256 126Z" fill="#F8FAFC"/>
+    <rect x="241" y="208" width="30" height="88" rx="8" fill="#38BDF8"/>
+    <path d="M228 302L256 438L284 302H228Z" fill="url(#thruster)"/>
+  </g>
+
+  <g opacity="0.88">
+    <path d="M224 228L182 296" stroke="#93C5FD" stroke-width="12" stroke-linecap="round"/>
+    <path d="M288 228L330 296" stroke="#93C5FD" stroke-width="12" stroke-linecap="round"/>
+    <path d="M256 238V320" stroke="#E0F2FE" stroke-width="10" stroke-linecap="round"/>
+  </g>
+</svg>

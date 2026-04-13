@@ -1,6 +1,6 @@
 const GAME_WIDTH = 900;
 const GAME_HEIGHT = 700;
-const GAME_VERSION = 'v0.2.3';
+const GAME_VERSION = 'v0.2.4';
 const STAGE_ROWS = [
   [1, 1, 1, 1],
   [2, 1, 1, 1],
@@ -816,19 +816,36 @@ function createTextures(scene) {
 
   g.fillStyle(0x7dd3fc, 1);
   g.beginPath();
-  g.moveTo(24, 0);
-  g.lineTo(48, 32);
-  g.lineTo(34, 30);
-  g.lineTo(28, 50);
-  g.lineTo(20, 50);
-  g.lineTo(14, 30);
-  g.lineTo(0, 32);
+  g.moveTo(24, 2);
+  g.lineTo(39, 24);
+  g.lineTo(31, 23);
+  g.lineTo(27, 40);
+  g.lineTo(21, 40);
+  g.lineTo(17, 23);
+  g.lineTo(9, 24);
   g.closePath();
   g.fillPath();
   g.fillStyle(0xffffff, 1);
-  g.fillTriangle(24, 10, 33, 28, 15, 28);
+  g.beginPath();
+  g.moveTo(24, 12);
+  g.lineTo(30, 24);
+  g.lineTo(18, 24);
+  g.closePath();
+  g.fillPath();
+  g.fillStyle(0x93c5fd, 1);
+  g.fillRect(16, 24, 3, 8);
+  g.fillRect(29, 24, 3, 8);
+  g.fillStyle(0xe0f2fe, 1);
+  g.fillRect(23, 24, 2, 10);
   g.fillStyle(0x38bdf8, 1);
-  g.fillRect(21, 30, 6, 14);
+  g.fillRoundedRect(21, 23, 6, 12, 3);
+  g.fillStyle(0x67e8f9, 1);
+  g.beginPath();
+  g.moveTo(20, 40);
+  g.lineTo(24, 49);
+  g.lineTo(28, 40);
+  g.closePath();
+  g.fillPath();
   g.generateTexture('player', 48, 50);
   g.clear();
 
