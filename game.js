@@ -52,9 +52,11 @@ let bestScore = 0;
 let lives = 3;
 let level = 1;
 let wave = 0;
+let waveEnemiesRemaining = 0;
 let shield = 0;
 let powerLevel = 1;
 let rapidUntil = 0;
+let awaitingNextWave = false;
 
 let scoreText;
 let livesText;
@@ -237,7 +239,7 @@ function handlePlayerFiring(time) {
 }
 
 function runFormationPhase(time) {
-  if (time >= nextFormationAt && countLivingEnemies() === 0) {
+  if (time >= nextFormationAt && !awaitingNextWave && waveEnemiesRemaining === 0 && countLivingEnemies() === 0) {
     spawnFormation.call(this);
     nextFormationAt = time + 1000000;
   }
@@ -254,8 +256,9 @@ function runFormationPhase(time) {
     nextPowerDropAt = time + 6000;
   }
 
-  if (countLivingEnemies() === 0 && enemyFormation.list.length > 0) {
-    enemyFormation.removeAll(true);
+  if (!awaitingNextWave && waveEnemiesRemaining === 0 && countLivingEnemies() === 0) {
+    awaitingNextWave = true;
+    enemyFormation.removeAll();
     wave += 1;
     if (wave % 4 === 0) {
       startBossBattle.call(this);
@@ -303,9 +306,11 @@ function resetRun(showReady) {
   lives = 3;
   level = 1;
   wave = 0;
+  waveEnemiesRemaining = 0;
   shield = 0;
   powerLevel = 1;
   rapidUntil = 0;
+  awaitingNextWave = false;
   lastFired = 0;
   nextFormationAt = 0;
   formationFireAt = 0;
@@ -342,7 +347,7 @@ function resetRun(showReady) {
 }
 
 function spawnFormation() {
-  enemyFormation.removeAll(true);
+  enemyFormation.removeAll();
 
   const rows = Math.min(3 + Math.floor(level / 2), 5);
   const cols = 7;
@@ -370,6 +375,8 @@ function spawnFormation() {
     }
   }
 
+  waveEnemiesRemaining = rows * cols;
+  awaitingNextWave = false;
   formationFireAt = 1200;
   nextPowerDropAt = 5000;
 }
@@ -389,8 +396,8 @@ function updateFormationMovement(time) {
       enemy.y += enemy.diveSpeedY;
       enemy.x += enemy.diveSpeedX;
       enemy.rotation += enemy.spinSpeed;
-      if (enemy.y > GAME_HEIGHT + 40) {
-        enemy.destroy();
+      if (enemy.y > GAME_HEIGHT + 40 || enemy.x < -80 || enemy.x > GAME_WIDTH + 80) {
+        resetDivingEnemy(enemy);
       }
     }
   });
@@ -424,11 +431,27 @@ function startDive(enemy) {
   enemy.diveSpeedY = 2.8 + level * 0.32;
   enemy.diveSpeedX = Phaser.Math.Clamp((player.x - enemy.x) * 0.01, -2.4, 2.4);
   enemy.spinSpeed = Phaser.Math.FloatBetween(-0.03, 0.03);
+  enemyFormation.remove(enemy);
+}
+
+function resetDivingEnemy(enemy) {
+  if (!enemy || !enemy.active) return;
+  enemy.inFormation = true;
+  enemy.diving = false;
+  enemy.rotation = 0;
+  enemy.x = enemy.baseX;
+  enemy.y = enemy.baseY;
+  enemy.body.velocity.set(0, 0);
+  if (!enemyFormation.list.includes(enemy)) {
+    enemyFormation.add(enemy);
+  }
 }
 
 function startBossBattle() {
   sceneState = State.BOSS;
-  enemyFormation.removeAll(true);
+  awaitingNextWave = false;
+  waveEnemiesRemaining = 0;
+  enemyFormation.removeAll();
   clearGroup(enemies);
   announce.call(this, 'WARNING: BOSS APPROACHING');
 
@@ -506,6 +529,8 @@ function onBulletHitEnemy(bullet, enemy) {
   if (Math.random() < 0.12) {
     spawnPowerUp.call(this, enemy.x, enemy.y, Math.random() < 0.72 ? 'powerUpP' : 'powerUpS');
   }
+  waveEnemiesRemaining = Math.max(0, waveEnemiesRemaining - 1);
+  enemyFormation.remove(enemy);
   enemy.destroy();
   score += 100;
   updateHud();
@@ -647,7 +672,9 @@ function cleanupEnemies(group) {
   group.children.iterate((enemy) => {
     if (!enemy || !enemy.active) return;
     if (enemy.y > GAME_HEIGHT + 60 || enemy.x < -100 || enemy.x > GAME_WIDTH + 100) {
-      enemy.destroy();
+      if (enemy.diving) {
+        resetDivingEnemy(enemy);
+      }
     }
   });
 }
