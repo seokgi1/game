@@ -1,6 +1,6 @@
 const GAME_WIDTH = 900;
 const GAME_HEIGHT = 700;
-const GAME_VERSION = 'v0.4.0';
+const GAME_VERSION = 'v0.2.1';
 const STAGE_ROWS = [
   [1, 1, 1, 1],
   [2, 1, 1, 1],
@@ -160,7 +160,7 @@ function create() {
   centerText = this.add.text(
     GAME_WIDTH / 2,
     GAME_HEIGHT / 2 - 70,
-    'GALAXY DEFENDER\nPRESS ENTER',
+    'GALAXY DEFENDER\nTAP OR PRESS ENTER',
     {
       fontSize: '42px',
       align: 'center',
@@ -175,7 +175,7 @@ function create() {
   helperText = this.add.text(
     GAME_WIDTH / 2,
     GAME_HEIGHT / 2 + 35,
-    'MOVE: LEFT / RIGHT or A / D\nFIRE: SPACE\nCOLLECT P / S / L ITEMS',
+    'MOVE: LEFT / RIGHT or A / D\nAUTO FIRE ENABLED\nCOLLECT P / S / L ITEMS',
     {
       fontSize: '19px',
       align: 'center',
@@ -224,7 +224,7 @@ function update(time, delta) {
   bobStars(starsNear, time);
 
   if (sceneState === State.READY || sceneState === State.GAME_OVER || sceneState === State.VICTORY) {
-    if (Phaser.Input.Keyboard.JustDown(enterKey)) {
+    if (Phaser.Input.Keyboard.JustDown(enterKey) || this.input.activePointer.justDown) {
       startNewGame.call(this);
     }
     return;
@@ -258,7 +258,7 @@ function handlePlayerMovement() {
 function handlePlayerFiring(time) {
   const baseGap = Math.max(80, 170 - (powerLevel - 1) * 7);
   const fireGap = time < rapidUntil ? Math.max(55, baseGap - 30) : baseGap;
-  if ((cursors.space.isDown || keys.SPACE.isDown) && time > lastFired) {
+  if (time > lastFired) {
     firePlayerBullets.call(this);
     lastFired = time + fireGap;
   }
@@ -364,8 +364,8 @@ function resetRun(showReady) {
 
   if (showReady) {
     sceneState = State.READY;
-    centerText.setText('GALAXY DEFENDER\nPRESS ENTER').setVisible(true);
-    helperText.setText('MOVE: LEFT / RIGHT or A / D\nFIRE: SPACE\nCOLLECT P / S / L ITEMS').setVisible(true);
+    centerText.setText('GALAXY DEFENDER\nTAP OR PRESS ENTER').setVisible(true);
+    helperText.setText('MOVE: LEFT / RIGHT or A / D\nAUTO FIRE ENABLED\nCOLLECT P / S / L ITEMS').setVisible(true);
   }
 }
 
@@ -648,7 +648,7 @@ function spawnPowerUp(x, y, key) {
 
 function triggerGameOver() {
   sceneState = State.GAME_OVER;
-  centerText.setText('GAME OVER\nPRESS ENTER').setVisible(true);
+  centerText.setText('GAME OVER\nTAP OR PRESS ENTER').setVisible(true);
   helperText.setText(`FINAL SCORE: ${score}`).setVisible(true);
   setBossBarVisible(false);
 
@@ -661,7 +661,7 @@ function triggerGameOver() {
 
 function triggerVictory() {
   sceneState = State.VICTORY;
-  centerText.setText('YOU WIN\nPRESS ENTER').setVisible(true);
+  centerText.setText('YOU WIN\nTAP OR PRESS ENTER').setVisible(true);
   helperText.setText(`FINAL SCORE: ${score}`).setVisible(true);
   setBossBarVisible(false);
 
